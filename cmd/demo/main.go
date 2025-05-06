@@ -18,6 +18,10 @@ import (
 )
 
 // Simulates an external service that sometimes fails
+// In a ticketing system, this could represent:
+// - Payment processor API calls
+// - Venue seating inventory lookup
+// - Customer authentication service
 func unreliableService(failureRate float64) error {
 	if rand.Float64() < failureRate {
 		return errors.New("service error: random failure")
@@ -28,6 +32,10 @@ func unreliableService(failureRate float64) error {
 }
 
 // Demo for Circuit Breaker pattern
+// For concert ticketing:
+// - Protects system when payment processor is failing
+// - Prevents cascading failures during high-volume sales
+// - Provides fail-fast response instead of slow failures
 func demoCircuitBreaker() {
 	fmt.Println("\n=== Circuit Breaker Demo ===")
 
@@ -46,7 +54,7 @@ func demoCircuitBreaker() {
 		if result == nil {
 			fmt.Printf("Operation %d: Success\n", i)
 		} else if errors.Is(result, breaker.ErrBreakerOpen) {
-			fmt.Printf("Operation %d: Circuit breaker is open\n", i)
+			fmt.Printf("Operation %d: Circuit breaker is triggered\n", i)
 		} else {
 			fmt.Printf("Operation %d: Failed with error: %v\n", i, result)
 		}
@@ -57,10 +65,16 @@ func demoCircuitBreaker() {
 }
 
 // Demo for Semaphore pattern
+// For concert ticketing:
+// - Controls number of concurrent ticket reservation requests
+// - Prevents system overload during popular concert on-sales
+// - Maintains fair access to limited ticket inventory
 func demoSemaphore() {
-	fmt.Println("\n=== Semaphore Demo ===")
+	fmt.Println("\n=== Concurrency Control Demo ===")
 
-	// Create a semaphore with 3 tickets
+	// Create a semaphore with 3 tickets capacity
+	// For ticket sales, this could limit concurrent database connections
+	// or number of simultaneous payment processing operations
 	sem := semaphore.New(3, 0) // No timeout for simplicity
 
 	var wg sync.WaitGroup
@@ -89,11 +103,16 @@ func demoSemaphore() {
 	wg.Wait()
 }
 
-// Demo for Deadline pattern
+// Demo for Timeout pattern
+// For concert ticketing:
+// - Enforces time limits on ticket reservation holds
+// - Prevents users from blocking inventory indefinitely
+// - Ensures responsive UX even when backend services are slow
 func demoDeadline() {
-	fmt.Println("\n=== Deadline Demo ===")
+	fmt.Println("\n=== Timeout Demo ===")
 
 	// Create a deadline with 500ms timeout
+	// In ticketing, timeouts might be longer (e.g., 30 seconds for checkout)
 	d := deadline.New(500 * time.Millisecond)
 
 	// Test with operations of different durations
@@ -124,10 +143,15 @@ func demoDeadline() {
 }
 
 // Demo for Retrier pattern
+// For concert ticketing:
+// - Handles transient payment processing failures
+// - Retries seat allocation when database contention occurs
+// - Improves success rate of ticket fulfillment operations
 func demoRetrier() {
 	fmt.Println("\n=== Retrier Demo ===")
 
 	// Create a retrier with 5 attempts and exponential backoff
+	// Critical for payment processing or database write operations
 	r := retrier.New(retrier.ExponentialBackoff(5, 100*time.Millisecond), nil)
 
 	// Test with a service that has a high failure rate
@@ -155,6 +179,10 @@ func demoRetrier() {
 }
 
 // Demo for Batcher pattern
+// For concert ticketing:
+// - Batches multiple ticket reservations into single inventory updates
+// - Reduces database load by consolidating operations
+// - Improves throughput during high-volume on-sales
 func demoBatcher() {
 	fmt.Println("\n=== Batcher Demo ===")
 
@@ -163,7 +191,8 @@ func demoBatcher() {
 	// - Process function
 	b := batcher.New(1*time.Second, func(items []interface{}) error {
 		fmt.Printf("Processing batch of %d items\n", len(items))
-		// Simulate batch processing
+		// In ticketing, this could batch multiple ticket reservations
+		// or multiple payment confirmations into a single database operation
 		time.Sleep(200 * time.Millisecond)
 		return nil
 	})
@@ -190,13 +219,17 @@ func demoBatcher() {
 }
 
 // Simple HTTP service demo using multiple patterns together
+// This simulates a complete concert ticketing API endpoint
+// that handles high concurrency and maintains resiliency
 func demoHttpService() {
 	fmt.Println("\n=== HTTP Service with Resiliency Patterns Demo ===")
 
 	// Circuit breaker for the service
+	// Protects when downstream services (payment, inventory) fail
 	cb := breaker.New(3, 1, 1000*time.Millisecond)
 
 	// Semaphore to limit concurrent requests
+	// Controls number of simultaneous ticket purchase attempts
 	sem := semaphore.New(5, 0)
 
 	// Setup a handler that uses these patterns
@@ -212,11 +245,13 @@ func demoHttpService() {
 		defer fmt.Println("Request completed, semaphore released")
 
 		// Use a deadline for the overall request
+		// Ensures ticket reservations don't hold resources indefinitely
 		d := deadline.New(2 * time.Second)
 
 		result := d.Run(func(cancelCh <-chan struct{}) error {
 			return cb.Run(func() error {
 				// Try to make a potentially failing call with retries
+				// This could represent payment processing with multiple attempts
 				err := retrier.New(retrier.ExponentialBackoff(3, 50*time.Millisecond), nil).Run(func() error {
 					// Simulate a flaky external service call
 					fmt.Println("Making request to service")
@@ -282,6 +317,12 @@ func demoHttpService() {
 	wg.Wait()
 }
 
+// Main function demonstrating various resiliency patterns
+// for a high-traffic concert ticketing system
+// These patterns help maintain system stability during:
+// - Popular concert on-sales with high traffic spikes
+// - Flash sales with thousands of concurrent users
+// - Integration with external payment systems
 func main() {
 	fmt.Println("Go Resiliency Patterns Demo")
 	fmt.Println("===========================")
